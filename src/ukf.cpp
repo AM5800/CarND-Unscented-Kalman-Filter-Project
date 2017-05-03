@@ -11,13 +11,13 @@ using std::vector;
 /**
  * Initializes Unscented Kalman filter
  */
-UKF::UKF() : is_initialized_(false),
-             x_(VectorXd::Zero(5)),
-             P_(1000 * MatrixXd::Identity(5, 5)),
+UKF::UKF() : n_x_(5),
+             is_initialized_(false),
+             x_(VectorXd::Zero(n_x_)),
+             P_(1000 * MatrixXd::Identity(n_x_, n_x_)),
              time_us_(0),
-             n_x_(0),
-             n_aug_(0),
-             lambda_(0),
+             n_aug_(7),
+             lambda_(3 - n_x_),
              NIS_radar_(0),
              NIS_laser_(0),
              previous_timestamp_(0) {

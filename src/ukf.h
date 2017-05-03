@@ -12,6 +12,9 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
 struct UKF {
+  ///* State dimension
+  int n_x_;
+
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -57,8 +60,7 @@ struct UKF {
   ///* Weights of sigma points
   VectorXd weights_;
 
-  ///* State dimension
-  int n_x_;
+
 
   ///* Augmented state dimension
   int n_aug_;
