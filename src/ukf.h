@@ -11,9 +11,7 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
-class UKF {
-public:
-
+struct UKF {
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
 
@@ -80,15 +78,10 @@ public:
   UKF();
 
   /**
-   * Destructor
-   */
-  virtual ~UKF();
-
-  /**
    * ProcessMeasurement
    * @param meas_package The latest measurement data of either radar or laser
    */
-  void ProcessMeasurement(MeasurementPackage meas_package);
+  void ProcessMeasurement(const MeasurementPackage & meas_package);
 
   /**
    * Prediction Predicts sigma points, the state, and the state covariance
@@ -108,6 +101,10 @@ public:
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
+
+private:
+  long long previous_timestamp_;
+  void Initialize(const MeasurementPackage& measurement_pack);
 };
 
 #endif /* UKF_H */

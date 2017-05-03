@@ -11,18 +11,21 @@ using std::vector;
 /**
  * Initializes Unscented Kalman filter
  */
-UKF::UKF() {
+UKF::UKF() : is_initialized_(false),
+             x_(VectorXd::Zero(5)),
+             P_(1000 * MatrixXd::Identity(5, 5)),
+             time_us_(0),
+             n_x_(0),
+             n_aug_(0),
+             lambda_(0),
+             NIS_radar_(0),
+             NIS_laser_(0),
+             previous_timestamp_(0) {
   // if this is false, laser measurements will be ignored (except during init)
   use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
-
-  // initial state vector
-  x_ = VectorXd(5);
-
-  // initial covariance matrix
-  P_ = MatrixXd(5, 5);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
   std_a_ = 30;
@@ -46,27 +49,54 @@ UKF::UKF() {
   std_radrd_ = 0.3;
 
   /**
-  TODO:
+TODO:
 
-  Complete the initialization. See ukf.h for other member properties.
+Complete the initialization. See ukf.h for other member properties.
 
-  Hint: one or more values initialized above might be wildly off...
-  */
+Hint: one or more values initialized above might be wildly off...
+*/
 }
 
-UKF::~UKF() {}
+void UKF::Initialize(const MeasurementPackage& measurement_pack) {
+  // first measurement
+  previous_timestamp_ = measurement_pack.timestamp_;
+
+  if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+    double rho = measurement_pack.raw_measurements_(0);
+    double phi = measurement_pack.raw_measurements_(1);
+    x_ << rho * cos(phi), rho * sin(phi), 0, 0;
+  }
+  else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+    double x = measurement_pack.raw_measurements_(0);
+    double y = measurement_pack.raw_measurements_(1);
+    x_ << x, y, 0, 0;
+  }
+
+  is_initialized_ = true;
+}
+
 
 /**
  * @param {MeasurementPackage} meas_package The latest measurement data of
  * either radar or laser.
  */
-void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-  /**
-  TODO:
+void UKF::ProcessMeasurement(const MeasurementPackage & meas_package) {
+  if (!is_initialized_) {
+    Initialize(meas_package);
+    return;
+  }
 
-  Complete this function! Make sure you switch between lidar and radar
-  measurements.
-  */
+  double dt = (meas_package.timestamp_ - previous_timestamp_) / 1000000.0;
+  previous_timestamp_ = meas_package.timestamp_;
+
+  Prediction(dt);
+
+  if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+    UpdateLidar(meas_package);
+  }
+  else {
+    UpdateRadar(meas_package);
+  }
 }
 
 /**
