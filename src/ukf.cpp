@@ -64,12 +64,12 @@ void UKF::Initialize(const MeasurementPackage& measurement_pack) {
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     double rho = measurement_pack.raw_measurements_(0);
     double phi = measurement_pack.raw_measurements_(1);
-    x_ << rho * cos(phi), rho * sin(phi), 0, 0;
+    x_(0) = rho * cos(phi);
+    x_(1) = rho * sin(phi);
   }
   else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
-    double x = measurement_pack.raw_measurements_(0);
-    double y = measurement_pack.raw_measurements_(1);
-    x_ << x, y, 0, 0;
+    x_(0) = measurement_pack.raw_measurements_(0);
+    x_(1) = measurement_pack.raw_measurements_(1);
   }
 
   is_initialized_ = true;
