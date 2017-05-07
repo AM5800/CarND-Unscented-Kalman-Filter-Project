@@ -95,8 +95,10 @@ pair<VectorXd, MatrixXd> ComputeMeanAndCovariance(const MatrixXd& predicted_sigm
   for (int i = 0; i < cols; ++i) {
     VectorXd x_diff = predicted_sigma_points.col(i) - x;
 
-    while (x_diff(angleNormalizationIndex) > M_PI) x_diff(angleNormalizationIndex) -= 2. * M_PI;
-    while (x_diff(angleNormalizationIndex) < -M_PI) x_diff(angleNormalizationIndex) += 2. * M_PI;
+    if (angleNormalizationIndex >= 0) {
+      while (x_diff(angleNormalizationIndex) > M_PI) x_diff(angleNormalizationIndex) -= 2. * M_PI;
+      while (x_diff(angleNormalizationIndex) < -M_PI) x_diff(angleNormalizationIndex) += 2. * M_PI;
+    }
 
     P = P + weights(i) * x_diff * x_diff.transpose();
   }
@@ -126,16 +128,18 @@ MatrixXd SigmaPointsToRadarSpace(const MatrixXd& predicted_sigma_points) {
   return result;
 }
 
-MatrixXd ComputeCrossCorrelation(const VectorXd& x, const MatrixXd& Xsig_pred, const VectorXd& z, const MatrixXd& Zsig, const VectorXd& weights) {
+MatrixXd ComputeCrossCorrelation(const VectorXd& x, const MatrixXd& Xsig_pred, const VectorXd& z, const MatrixXd& Zsig, const VectorXd& weights, int angleNormalizationIndex) {
   MatrixXd result = MatrixXd::Zero(x.rows(), z.rows());
 
   for (int i = 0; i < Xsig_pred.cols(); i++) {
-
     //residual
     VectorXd z_diff = Zsig.col(i) - z;
-    //angle normalization
-    while (z_diff(1) > M_PI) z_diff(1) -= 2. * M_PI;
-    while (z_diff(1) < -M_PI) z_diff(1) += 2. * M_PI;
+
+    if (angleNormalizationIndex >= 0) {
+      //angle normalization
+      while (z_diff(angleNormalizationIndex) > M_PI) z_diff(angleNormalizationIndex) -= 2. * M_PI;
+      while (z_diff(angleNormalizationIndex) < -M_PI) z_diff(angleNormalizationIndex) += 2. * M_PI;
+    }
 
     // state difference
     VectorXd x_diff = Xsig_pred.col(i) - x;
@@ -155,34 +159,34 @@ MatrixXd ComputeCrossCorrelation(const VectorXd& x, const MatrixXd& Xsig_pred, c
 UKF::UKF() : is_initialized_(false),
              x_(VectorXd::Zero(n_x_)),
              P_(1000 * MatrixXd::Identity(n_x_, n_x_)),
-             time_us_(0),
              weights_(VectorXd::Zero(n_aug_ * 2 + 1)),
              lambda_(3 - n_x_),
              NIS_radar_(0),
              NIS_laser_(0),
              Q_(MatrixXd::Zero(n_aug_ - n_x_, n_aug_ - n_x_)),
              R_radar_(MatrixXd::Zero(3, 3)),
+             R_laser_(MatrixXd::Zero(2, 2)),
              previous_timestamp_(0) {
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+  double std_a_ = 30;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
+  double std_yawdd_ = 30;
 
   // Laser measurement noise standard deviation position1 in m
-  std_laspx_ = 0.15;
+  double std_laspx_ = 0.15;
 
   // Laser measurement noise standard deviation position2 in m
-  std_laspy_ = 0.15;
+  double std_laspy_ = 0.15;
 
   // Radar measurement noise standard deviation radius in m
-  std_radr_ = 0.3;
+  double std_radr_ = 0.3;
 
   // Radar measurement noise standard deviation angle in rad
-  std_radphi_ = 0.03;
+  double std_radphi_ = 0.03;
 
   // Radar measurement noise standard deviation radius change in m/s
-  std_radrd_ = 0.3;
+  double std_radrd_ = 0.3;
 
   Q_(0, 0) = std_a_ * std_a_;
   Q_(1, 1) = std_yawdd_ * std_yawdd_;
@@ -195,6 +199,9 @@ UKF::UKF() : is_initialized_(false),
   R_radar_(0, 0) = std_radr_ * std_radr_;
   R_radar_(1, 1) = std_radphi_ * std_radphi_;
   R_radar_(2, 2) = std_radrd_ * std_radrd_;
+
+  R_laser_(0, 0) = std_laspx_ * std_laspx_;
+  R_laser_(1, 1) = std_laspy_ * std_laspy_;
 }
 
 void UKF::Initialize(const MeasurementPackage& measurement_pack) {
@@ -257,14 +264,20 @@ void UKF::Prediction(double delta_t) {
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
-  /**
-  TODO:
+  MatrixXd Zsig = Xsig_pred_.topRows(2);
 
-  Complete this function! Use lidar data to update the belief about the object's
-  position. Modify the state vector, x_, and covariance, P_.
+  auto z_and_S = ComputeMeanAndCovariance(Zsig, weights_, -1);
+  VectorXd z_pred = z_and_S.first;
+  MatrixXd S = z_and_S.second + R_laser_;
+  MatrixXd T = ComputeCrossCorrelation(x_, Xsig_pred_, z_pred, Zsig, weights_, -1);
 
-  You'll also need to calculate the lidar NIS.
-  */
+  MatrixXd K = T * S.inverse();
+  VectorXd z_diff = meas_package.raw_measurements_ - z_pred;
+
+  x_ += K * z_diff;
+  P_ -= K * S * K.transpose();
+
+  NIS_laser_ = z_diff.transpose() * S.inverse() * z_diff;
 }
 
 /**
@@ -276,7 +289,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   auto z_and_S = ComputeMeanAndCovariance(Zsig, weights_, 1);
   VectorXd z_pred = z_and_S.first;
   MatrixXd S = z_and_S.second + R_radar_;
-  MatrixXd T = ComputeCrossCorrelation(x_, Xsig_pred_, z_pred, Zsig, weights_);
+  MatrixXd T = ComputeCrossCorrelation(x_, Xsig_pred_, z_pred, Zsig, weights_, 1);
 
   MatrixXd K = T * S.inverse();
   VectorXd z_diff = meas_package.raw_measurements_ - z_pred;
