@@ -13,7 +13,7 @@ using Eigen::VectorXd;
 
 struct UKF {
   ///* State dimension
-  int n_x_;
+  static const int n_x_ = 5;
 
   ///* initially set to false, set to true in first call of ProcessMeasurement
   bool is_initialized_;
@@ -60,10 +60,8 @@ struct UKF {
   ///* Weights of sigma points
   VectorXd weights_;
 
-
-
   ///* Augmented state dimension
-  int n_aug_;
+  static const int n_aug_ = 7;
 
   ///* Sigma point spreading parameter
   double lambda_;
@@ -105,6 +103,8 @@ struct UKF {
   void UpdateRadar(MeasurementPackage meas_package);
 
 private:
+  MatrixXd Q_;
+
   long long previous_timestamp_;
   void Initialize(const MeasurementPackage& measurement_pack);
 };
