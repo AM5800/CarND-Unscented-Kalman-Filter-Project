@@ -158,7 +158,7 @@ MatrixXd ComputeCrossCorrelation(const VectorXd& x, const MatrixXd& Xsig_pred, c
  */
 UKF::UKF() : is_initialized_(false),
              x_(VectorXd::Zero(n_x_)),
-             P_(1000 * MatrixXd::Identity(n_x_, n_x_)),
+             P_(1 * MatrixXd::Identity(n_x_, n_x_)),
              weights_(VectorXd::Zero(n_aug_ * 2 + 1)),
              lambda_(3 - n_x_),
              NIS_radar_(0),
@@ -168,10 +168,10 @@ UKF::UKF() : is_initialized_(false),
              R_laser_(MatrixXd::Zero(2, 2)),
              previous_timestamp_(0) {
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  double std_a_ = 30;
+  double std_a_ = 3;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  double std_yawdd_ = 30;
+  double std_yawdd_ = 1;
 
   // Laser measurement noise standard deviation position1 in m
   double std_laspx_ = 0.15;
@@ -265,10 +265,8 @@ void UKF::Prediction(double delta_t) {
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
   MatrixXd Zsig = Xsig_pred_.topRows(2);
-
-  auto z_and_S = ComputeMeanAndCovariance(Zsig, weights_, -1);
-  VectorXd z_pred = z_and_S.first;
-  MatrixXd S = z_and_S.second + R_laser_;
+  VectorXd z_pred = x_.head(2);
+  MatrixXd S = P_.topLeftCorner(2, 2) + R_laser_;
   MatrixXd T = ComputeCrossCorrelation(x_, Xsig_pred_, z_pred, Zsig, weights_, -1);
 
   MatrixXd K = T * S.inverse();
