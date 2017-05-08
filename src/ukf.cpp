@@ -1,8 +1,6 @@
 #include "ukf.h"
 #include "tools.h"
 #include "Eigen/Dense"
-#include <iostream>
-#include "Eigen/src/Core/util/ForwardDeclarations.h"
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -156,13 +154,13 @@ MatrixXd ComputeCrossCorrelation(const VectorXd& x, const MatrixXd& Xsig_pred, c
 /**
  * Initializes Unscented Kalman filter
  */
-UKF::UKF() : is_initialized_(false),
-             x_(VectorXd::Zero(n_x_)),
-             P_(1 * MatrixXd::Identity(n_x_, n_x_)),
-             weights_(VectorXd::Zero(n_aug_ * 2 + 1)),
-             lambda_(3 - n_x_),
+UKF::UKF() : x_(VectorXd::Zero(n_x_)),
+             P_(MatrixXd::Identity(n_x_, n_x_)),
              NIS_radar_(0),
              NIS_laser_(0),
+             is_initialized_(false),
+             weights_(VectorXd::Zero(n_aug_ * 2 + 1)),
+             lambda_(3 - n_x_),
              Q_(MatrixXd::Zero(n_aug_ - n_x_, n_aug_ - n_x_)),
              R_radar_(MatrixXd::Zero(3, 3)),
              R_laser_(MatrixXd::Zero(2, 2)),
