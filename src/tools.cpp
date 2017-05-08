@@ -8,7 +8,7 @@ using std::vector;
 VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
                               const vector<VectorXd> &ground_truth) {
   if (estimations.size() != ground_truth.size() || estimations.size() == 0)
-    throw std::exception("Estimation and Ground Truth size mismatch");
+    throw std::logic_error("Estimation and Ground Truth size mismatch");
 
   VectorXd sum = VectorXd::Zero(estimations.front().rows());
 
