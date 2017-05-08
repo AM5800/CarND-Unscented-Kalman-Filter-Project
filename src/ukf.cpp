@@ -7,6 +7,13 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 using std::vector;
 
+void NormalizeAngles(VectorXd & v, int angleNormalizationIndex) {
+  if (angleNormalizationIndex < 0) return;
+
+  while (v(angleNormalizationIndex) > M_PI) v(angleNormalizationIndex) -= 2. * M_PI;
+  while (v(angleNormalizationIndex) < -M_PI) v(angleNormalizationIndex) += 2. * M_PI;
+}
+
 MatrixXd CreateSigmaPoints(const VectorXd& x, const MatrixXd& P, const MatrixXd& Q, double lambda) {
   int n_x = x.rows();
   int n_aug_x = Q.rows() + n_x;
@@ -93,10 +100,7 @@ pair<VectorXd, MatrixXd> ComputeMeanAndCovariance(const MatrixXd& predicted_sigm
   for (int i = 0; i < cols; ++i) {
     VectorXd x_diff = predicted_sigma_points.col(i) - x;
 
-    if (angleNormalizationIndex >= 0) {
-      while (x_diff(angleNormalizationIndex) > M_PI) x_diff(angleNormalizationIndex) -= 2. * M_PI;
-      while (x_diff(angleNormalizationIndex) < -M_PI) x_diff(angleNormalizationIndex) += 2. * M_PI;
-    }
+    NormalizeAngles(x_diff, angleNormalizationIndex);
 
     P = P + weights(i) * x_diff * x_diff.transpose();
   }
@@ -133,17 +137,12 @@ MatrixXd ComputeCrossCorrelation(const VectorXd& x, const MatrixXd& Xsig_pred, c
     //residual
     VectorXd z_diff = Zsig.col(i) - z;
 
-    if (angleNormalizationIndex >= 0) {
-      //angle normalization
-      while (z_diff(angleNormalizationIndex) > M_PI) z_diff(angleNormalizationIndex) -= 2. * M_PI;
-      while (z_diff(angleNormalizationIndex) < -M_PI) z_diff(angleNormalizationIndex) += 2. * M_PI;
-    }
+    NormalizeAngles(z_diff, angleNormalizationIndex);
 
     // state difference
     VectorXd x_diff = Xsig_pred.col(i) - x;
-    //angle normalization
-    while (x_diff(3) > M_PI) x_diff(3) -= 2. * M_PI;
-    while (x_diff(3) < -M_PI) x_diff(3) += 2. * M_PI;
+
+    NormalizeAngles(x_diff, 3);
 
     result += weights(i) * x_diff * z_diff.transpose();
   }
@@ -290,8 +289,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   MatrixXd K = T * S.inverse();
   VectorXd z_diff = meas_package.raw_measurements_ - z_pred;
 
-  while (z_diff(1) > M_PI) z_diff(1) -= 2. * M_PI;
-  while (z_diff(1) < -M_PI) z_diff(1) += 2. * M_PI;
+  NormalizeAngles(z_diff, 1);
 
   x_ += K * z_diff;
   P_ -= K * S * K.transpose();
